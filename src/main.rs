@@ -6,7 +6,6 @@ extern crate log;
 #[macro_use]
 extern crate derivative;
 
-
 use colors::*;
 use glutin_window::GlutinWindow;
 use image::{imageops, io::Reader as ImageReader};
@@ -25,13 +24,15 @@ pub fn rectangle_by_points(c0: F64x2, c1: F64x2) -> [f64; 4] {
 pub const METERS_TO_POINTS: f64 = 100.0;
 pub const POINTS_TO_METERS: f64 = 1.0 / METERS_TO_POINTS;
 
+pub const GRAMS_TO_KG: f64 = 0.001;
+
 pub const GRAVITY: F64x2 = F64x2::new(0.0, -9.80665);
 pub const BOUNCE_COEFF: f64 = 0.1;
 /// friciton coefficients
 /// for this section, see https://en.wikipedia.org/wiki/Friction#Approximate_coefficients_of_friction
 
 /// when it is close enough to the ground, this is applied as velocity -= FLOOR_FRICTION_COEFF * WEIGHT * GRAVITY
-pub const FLOOR_FRICTION_COEFF: F64x2 = F64x2::new(0.6, 0.0);
+pub const FLOOR_FRICTION_COEFF: F64x2 = F64x2::new(0.9, 0.0);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum HorizontalDirection {
@@ -63,10 +64,12 @@ pub struct PlayerPhys {
     down_to_earth: bool,
     /// last direction of movement. by default, this is right
     last_direction: HorizontalDirection,
+    /// width, height from the bottom left corner
+    size: F64x2,
 }
 
 impl PlayerPhys {
-    pub fn new(loc: F64x2, mass: f64) -> Self {
+    pub fn new(loc: F64x2, mass: f64, size: F64x2) -> Self {
         Self {
             loc,
             force: F64x2::zero(),
@@ -76,74 +79,78 @@ impl PlayerPhys {
             mass,
             down_to_earth: false,
             last_direction: HorizontalDirection::Right,
+            size,
         }
     }
 
     pub fn update(&mut self, dt: f64, win_size: [f64; 2]) {
-                    // TODO make friction apply in the y axis
-            // let friction = if self.down_to_earth {
-            //     FLOOR_FRICTION_COEFF.x * self.mass * GRAVITY.y
-            // } else {
-            //     0.0
-            // };
-            // let forces_after_friction = forces - if forces.x.is_sign_negative() { -friction } else { friction };
-            // println!("{:?} - {:?} = {:?}", forces, friction, forces_after_friction);
-            // // make sure that the old force is less than the new one, and that the sign stays the same
-            // if forces.x.abs() > forces_after_friction.x.abs() && forces.x.is_sign_negative() == forces_after_friction.x.is_sign_negative() {
-            //     forces = forces_after_friction;
-            // }
-            // TODO implement a proper system for storing forces
-            let forces = self.force + self.movement_forces;
-            self.accel = forces / self.mass;
-            self.vel += GRAVITY * dt;
-            self.vel += self.accel * dt;
-            if self.down_to_earth {
-                let mut friction = FLOOR_FRICTION_COEFF.x * GRAVITY.y * dt;
-                if !self.vel.x.is_sign_negative() {
-                    friction = -friction;
-                }
-                // println!(
-                //     "{} - {} = {}",
-                //     self.vel.x,
-                //     friction,
-                //     self.vel.x - friction
-                // );
-                self.vel.x = if ((self.vel.x - friction).abs() < self.vel.x.abs())
-                    && ((self.vel.x - friction).is_sign_negative()
-                        == self.vel.x.is_sign_negative())
-                {
-                    // println!("friction applies");
-                    self.vel.x - friction
-                } else {
-                    0.0
-                }
-            }
-            self.loc += self.vel * dt;
+        // TODO make friction apply in the y axis
+        // let friction = if self.down_to_earth {
+        //     FLOOR_FRICTION_COEFF.x * self.mass * GRAVITY.y
+        // } else {
+        //     0.0
+        // };
+        // let forces_after_friction = forces - if forces.x.is_sign_negative() { -friction } else { friction };
+        // println!("{:?} - {:?} = {:?}", forces, friction, forces_after_friction);
+        // // make sure that the old force is less than the new one, and that the sign stays the same
+        // if forces.x.abs() > forces_after_friction.x.abs() && forces.x.is_sign_negative() == forces_after_friction.x.is_sign_negative() {
+        //     forces = forces_after_friction;
+        // }
+        // TODO implement a proper system for storing forces
 
-            //TODO implement friction and proper bouncing
-            if self.loc.x < 0.0 {
-                self.vel.x = -self.vel.x * BOUNCE_COEFF;
-                self.loc.x = 0.0;
+        let forces = self.force + self.movement_forces;
+        self.accel = forces / self.mass;
+        self.vel += GRAVITY * dt;
+        self.vel += self.accel * dt;
+
+        //TODO make better friction
+        if self.down_to_earth {
+            let mut friction = FLOOR_FRICTION_COEFF.x * GRAVITY.y * dt;
+            if !self.vel.x.is_sign_negative() {
+                friction = -friction;
             }
-            if self.loc.x > win_size[0] * POINTS_TO_METERS {
-                self.vel.x = -self.vel.x * BOUNCE_COEFF;
-                self.loc.x = win_size[0] * POINTS_TO_METERS;
+            // println!(
+            //     "{} - {} = {}",
+            //     self.vel.x,
+            //     friction,
+            //     self.vel.x - friction
+            // );
+            self.vel.x = if ((self.vel.x - friction).abs() < self.vel.x.abs())
+                && ((self.vel.x - friction).is_sign_negative() == self.vel.x.is_sign_negative())
+            {
+                // println!("friction applies");
+                self.vel.x - friction
+            } else {
+                0.0
             }
-            if self.loc.y < 0.0 {
-                self.vel.y = -self.vel.y * BOUNCE_COEFF;
-                self.loc.y = 0.0;
-            }
-            if self.loc.y > win_size[1] * POINTS_TO_METERS {
-                self.vel.y = -self.vel.y * BOUNCE_COEFF;
-                self.loc.y = win_size[1] * POINTS_TO_METERS;
-            }
-            self.down_to_earth = self.loc.y < 0.1;
-            if self.movement_forces.x > 0.0 {
-                self.last_direction = HorizontalDirection::Right;
-            } else if self.movement_forces.x < 0.0 {
-                self.last_direction = HorizontalDirection::Left;
-            }
-            println!("{:#?}", self);
+        }
+        self.loc += self.vel * dt;
+
+        //TODO implement proper bouncing
+        // bouncing off walls
+        if self.loc.x < 0.0 {
+            self.vel.x = -self.vel.x * BOUNCE_COEFF;
+            self.loc.x = 0.0;
+        }
+        if self.loc.x + self.size.x > win_size[0] * POINTS_TO_METERS {
+            self.vel.x = -self.vel.x * BOUNCE_COEFF;
+            self.loc.x = win_size[0] * POINTS_TO_METERS - self.size.x;
+        }
+        if self.loc.y < 0.0 {
+            self.vel.y = -self.vel.y * BOUNCE_COEFF;
+            self.loc.y = 0.0;
+        }
+        if self.loc.y + self.size.y > win_size[1] * POINTS_TO_METERS {
+            self.vel.y = -self.vel.y * BOUNCE_COEFF;
+            self.loc.y = win_size[1] * POINTS_TO_METERS - self.size.y;
+        }
+        self.down_to_earth = self.loc.y < 0.1;
+        if self.movement_forces.x > 0.0 {
+            self.last_direction = HorizontalDirection::Right;
+        } else if self.movement_forces.x < 0.0 {
+            self.last_direction = HorizontalDirection::Left;
+        }
+        println!("{:#?}", self);
     }
 }
 
@@ -151,22 +158,28 @@ impl PlayerPhys {
 #[derivative(Debug)]
 pub struct Player {
     phys: PlayerPhys,
-    #[derivative(Debug="ignore")]
+    #[derivative(Debug = "ignore")]
     sprites: (Texture, Texture),
+    // cfg values
+    /// force added to y velocity on jumping
+    jump_force: f64,
+    move_force: f64,
 }
 
 impl Player {
-    pub fn new(loc: F64x2, mass: f64) -> Self {
-
+    pub fn new(loc: F64x2, mass: f64, jump_force: f64, move_force: f64) -> Self {
         let player_image = ImageReader::open("assets/cursd_le_mon_smol.png")
             .unwrap()
             .decode()
             .unwrap()
             .to_rgba8();
+
+        let scale_factor = 4;
+
         let player_image_upscaled = imageops::resize(
             &player_image,
-            player_image.width() * 4,
-            player_image.height() * 4,
+            player_image.width() * scale_factor,
+            player_image.height() * scale_factor,
             imageops::Nearest,
         );
 
@@ -179,8 +192,17 @@ impl Player {
         );
 
         Self {
-            phys: PlayerPhys::new(loc, mass),
+            phys: PlayerPhys::new(
+                loc,
+                mass,
+                F64x2 {
+                    x: player_image.width() as f64 * scale_factor as f64 * POINTS_TO_METERS,
+                    y: player_image.height() as f64 * scale_factor as f64 * POINTS_TO_METERS,
+                },
+            ),
             sprites,
+            jump_force,
+            move_force,
         }
     }
 
@@ -196,9 +218,8 @@ impl Player {
 
         Image::new()
             .rect(rectangle_by_points(
-                globalize_physics_coord(self.phys.loc * METERS_TO_POINTS)
-                    - F64x2::new(12.0 * 4.0, 16.0 * 4.0),
                 globalize_physics_coord(self.phys.loc * METERS_TO_POINTS),
+                globalize_physics_coord((self.phys.loc + self.phys.size) * METERS_TO_POINTS),
             ))
             .draw(
                 match self.phys.last_direction {
@@ -214,6 +235,10 @@ impl Player {
     pub fn update_phys(&mut self, dt: f64, win_size: [f64; 2]) {
         self.phys.update(dt, win_size);
     }
+
+    pub fn jump(&mut self) {
+        self.phys.vel.y += self.jump_force;
+    }
 }
 
 fn main() {
@@ -226,28 +251,24 @@ fn main() {
     // Change this to OpenGL::V2_1 if not working.
     let opengl = OpenGL::V4_5;
 
-    const WIDTH: f64 = 1000.0;
-    const HEIGHT: f64 = 700.0;
-
     // Create an Glutin window.
     let mut window: GlutinWindow = WindowSettings::new("platformR", [200, 200])
         .graphics_api(opengl)
         .exit_on_esc(true)
         .vsync(true)
-        .resizable(false)
-        .size(piston::Size {
-            width: WIDTH,
-            height: HEIGHT,
-        })
         .controllers(true)
         .build()
         .unwrap();
 
     let mut gl = GlGraphics::new(opengl);
-
     let mut win_size = [0f64; 2];
-    let mut player = Player::new(F64x2::splat(1.0), 1.0);
 
+    let mut player = Player::new(
+        F64x2::splat(1.0),
+        113.0 * GRAMS_TO_KG, /* about how much a large lemon weighs */
+        5.0,
+        2.0,
+    );
 
     let mut events = Events::new({
         let mut es = EventSettings::new();
@@ -269,13 +290,14 @@ fn main() {
             gl.draw(args.viewport(), |c, gl| {
                 clear(DARK_GREY, gl);
 
-                player.draw(&c, gl, HEIGHT);
+                player.draw(&c, gl, win_size[1]);
             });
         }
+
         if let Some(args) = e.update_args() {
             player.update_phys(args.dt, win_size);
         }
-        const MOVE_FORCE: f64 = 10.0;
+
         if let Some(args) = e.press_args() {
             match args {
                 Button::Mouse(mouse_btn) => match mouse_btn {
@@ -283,15 +305,15 @@ fn main() {
                 },
                 Button::Keyboard(keyboard_btn) => match keyboard_btn {
                     Key::A => {
-                        player.phys.movement_forces += F64x2::new(-MOVE_FORCE, 0.0);
+                        player.phys.movement_forces += F64x2::new(-player.move_force, 0.0);
                     }
                     Key::D => {
-                        player.phys.movement_forces += F64x2::new(MOVE_FORCE, 0.0);
+                        player.phys.movement_forces += F64x2::new(player.move_force, 0.0);
                     }
                     Key::Space => {
                         // boing
                         if player.phys.down_to_earth {
-                            player.phys.vel.y += 7.0;
+                            player.jump();
                         }
                     }
                     _ => {}
@@ -299,6 +321,7 @@ fn main() {
                 _ => {}
             }
         }
+
         if let Some(args) = e.release_args() {
             match args {
                 Button::Mouse(mouse_btn) => match mouse_btn {
@@ -306,10 +329,10 @@ fn main() {
                 },
                 Button::Keyboard(keyboard_btn) => match keyboard_btn {
                     Key::A => {
-                        player.phys.movement_forces -= F64x2::new(-MOVE_FORCE, 0.0);
+                        player.phys.movement_forces -= F64x2::new(-player.move_force, 0.0);
                     }
                     Key::D => {
-                        player.phys.movement_forces -= F64x2::new(MOVE_FORCE, 0.0);
+                        player.phys.movement_forces -= F64x2::new(player.move_force, 0.0);
                     }
                     _ => {}
                 },
