@@ -1,0 +1,23 @@
+[package]
+name = "platform-r"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+piston = "0.53.0"
+piston2d-graphics = "0.42.0"
+pistoncore-glutin_window = "0.69.0"
+piston2d-opengl_graphics = "0.81.0"
+piston2d-sprite = "0.66.0"
+derivative = "2.2.0"
+palette = "0.6.0"
+tokio = { version = "1.17.0", features = ["full"] }
+pretty_env_logger = "0.4"
+log = "0.4"
+image = "0.24.1"
+
+[profile.dev-speed]
+inherits = "dev"
+opt-level = 2
