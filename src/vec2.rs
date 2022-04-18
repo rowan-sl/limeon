@@ -250,3 +250,9 @@ impl From<[f64; 2]> for F64x2 {
         }
     }
 }
+
+impl Into<[f64; 2]> for F64x2 {
+    fn into(self) -> [f64; 2] {
+        [self.x, self.y]
+    }
+}

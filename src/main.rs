@@ -32,7 +32,7 @@ pub const BOUNCE_COEFF: f64 = 0.1;
 /// for this section, see https://en.wikipedia.org/wiki/Friction#Approximate_coefficients_of_friction
 
 /// when it is close enough to the ground, this is applied as velocity -= FLOOR_FRICTION_COEFF * WEIGHT * GRAVITY
-pub const FLOOR_FRICTION_COEFF: F64x2 = F64x2::new(0.9, 0.0);
+pub const FLOOR_FRICTION_COEFF: F64x2 = F64x2::new(0.2, 0.0);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum HorizontalDirection {
@@ -122,7 +122,7 @@ impl PlayerPhys {
 
         let forces = self.force + self.movement_forces;
         self.accel = forces / self.mass;
-        // self.vel += GRAVITY * dt;
+        self.vel += GRAVITY * dt;
         self.vel += self.accel * dt;
 
         //TODO make better friction
@@ -131,12 +131,6 @@ impl PlayerPhys {
             if !self.vel.x.is_sign_negative() {
                 friction = -friction;
             }
-            // println!(
-            //     "{} - {} = {}",
-            //     self.vel.x,
-            //     friction,
-            //     self.vel.x - friction
-            // );
             self.vel.x = if ((self.vel.x - friction).abs() < self.vel.x.abs())
                 && ((self.vel.x - friction).is_sign_negative() == self.vel.x.is_sign_negative())
             {
@@ -151,12 +145,6 @@ impl PlayerPhys {
             if !self.vel.y.is_sign_negative() {
                 friction = -friction;
             }
-            // println!(
-            //     "{} - {} = {}",
-            //     self.vel.x,
-            //     friction,
-            //     self.vel.x - friction
-            // );
             self.vel.y = if ((self.vel.y - friction).abs() < self.vel.y.abs())
                 && ((self.vel.y - friction).is_sign_negative() == self.vel.y.is_sign_negative())
             {
@@ -239,224 +227,34 @@ impl PlayerPhys {
         println!("y min val: {}", self.y_min);
         self.y_max = get_limit(current_pixelspace_loc + F64x2::new(1.0, 4.0), 2);
         println!("y max val: {}", self.y_max);
-        self.x_min = get_limit(current_pixelspace_loc + F64x2::new(0.0, 1.0), 3);
+        self.x_min = get_limit(current_pixelspace_loc + F64x2::new(0.0, 2.0), 3);
         println!("x min val: {}", self.x_min);
-        self.x_max = get_limit(current_pixelspace_loc + F64x2::new(2.0, 1.0), 4);
+        self.x_max = get_limit(current_pixelspace_loc + F64x2::new(2.0, 2.0), 4);
         println!("x max val: {}", self.x_max);
 
-        // println!("old location:\n{:#?}\nnew location:\n{:#?}", current_pixelspace_loc, new_pixelspace_loc);
-
-        // if let Some(pixel) =
-        //     map.get_pixel_checked(new_pixelspace_loc.0.x as u32, new_pixelspace_loc.0.y as u32)
-        // {
-        //     println!("{:?} @ {} {}", pixel, new_pixelspace_loc.0.x as u32, new_pixelspace_loc.0.y as u32);
-        //     if *pixel != Rgba([0; 4]) {
-        //         let mut acceptable = 0;
-        //         loop {
-        //             if let Some(pixel) = map.get_pixel_checked(
-        //                 new_pixelspace_loc.0.x as u32,
-        //                 new_pixelspace_loc.0.y as u32 + acceptable,
-        //             ) {
-        //                 if *pixel == Rgba([0; 4]) {
-        //                     break;
-        //                 } else {
-        //                     acceptable += 1;
-        //                 }
-        //             } else {
-        //                 break;
-        //             }
-        //         }
-        //         new_pixelspace_loc.0.y = (new_pixelspace_loc.0.y as u32 + acceptable) as f64;
-        //     }
-        //     // self.loc = new_loc;
-        //     // self.vel.y = self.vel.y.abs() * BOUNCE_COEFF;
-        // } else {
-        //     // self.loc = new_loc;
-        // }
         self.loc = new_loc;
-
-        // // corner, collision direction, distance of collision, resulting direction
-        // let mut collisions: Vec<(Direction, Direction, f64, Direction)> = vec![];
-
-        // for (i, corner) in [
-        //     (1, self.loc),
-        //     (
-        //         2,
-        //         F64x2 {
-        //             x: self.loc.x + self.size.x,
-        //             y: self.loc.y,
-        //         },
-        //     ),
-        //     (
-        //         3,
-        //         F64x2 {
-        //             x: self.loc.x,
-        //             y: self.loc.y + self.size.y,
-        //         },
-        //     ),
-        //     (4, self.loc + self.size),
-        // ] {
-        //     let nearby_x = [
-        //         corner.x + 1.0 * map_px_to_meter,
-        //         corner.x - 1.0 * map_px_to_meter,
-        //         corner.x,
-        //     ];
-        //     let nearby_y = [
-        //         corner.y + 1.0 * map_px_to_meter,
-        //         corner.y - 1.0 * map_px_to_meter,
-        //         corner.y,
-        //     ];
-        //     for x in nearby_x {
-        //         for y in nearby_y {
-        //             let distance = corner.dist_between_circles(
-        //                 F64x2::new(x.floor(), y.floor()),
-        //                 0.0,
-        //                 map_px_to_meter * 1.5,
-        //             ); // if this distance is < 0, then it is within the collision zone
-        //             let pxl_x = (x * meter_to_map_px).floor() as i64;
-        //             let pxl_y = (y * meter_to_map_px).floor() as i64;
-        //             if pxl_x.is_negative() || pxl_y.is_negative() {
-        //                 continue;
-        //             } else {
-        //                 if let Some(pxl) = map.get_pixel_checked(x as u32, y as u32) {
-        //                     if pxl.0[3] != 0 && distance < 0.0 {
-        //                         // collision!
-        //                         let base_direction = match i {
-        //                             1 => Direction::SW,
-        //                             2 => Direction::SE,
-        //                             3 => Direction::NW,
-        //                             4 => Direction::NE,
-        //                             _ => unreachable!(),
-        //                         };
-        //                         let direction = match (
-        //                             ((corner.x * meter_to_map_px).floor()
-        //                                 - (x * meter_to_map_px).floor())
-        //                             .is_sign_negative(), /* pos = s neg = n */
-        //                             (
-        //                                 (((corner.x * meter_to_map_px).floor()
-        //                                 - (x * meter_to_map_px).floor()) as i64) == 0
-        //                             ), /* is it zero */
-        //                             ((corner.y * meter_to_map_px).floor()
-        //                                 - (y * meter_to_map_px).floor())
-        //                             .is_sign_negative(), /* pos = w neg = e */
-        //                             (
-        //                                 (((corner.y * meter_to_map_px).floor()
-        //                                 - (y * meter_to_map_px).floor()) as i64) == 0
-        //                             ), /* is it zero */
-        //                         ) {
-        //                             //* FIXME right now the NE, NW, SE, and SW collisions are removed as they kinda take place anyway farther
-        //                             //* on thanks to the stacking of collisions, and it would be rather bad if they were in place at that point
-        //                             // north and its variations
-        //                             // (true, false, true, false) => Direction::NE,
-        //                             // (true, false, false, false) => Direction::NW,
-        //                             (true, false, _, true) => Direction::N,
-        //                             // south and its variations
-        //                             // (false, false, true, false) => Direction::SE,
-        //                             // (false, false, false, false) => Direction::SW,
-        //                             (false, false, _, true) => Direction::S,
-        //                             // just east and west
-        //                             (_, true, true, false) => Direction::E,
-        //                             (_, true, false, false) => Direction::W,
-        //                             (_, true, _, true) => continue,
-        //                             _ => continue,
-        //                         };
-        //                         let resulting_direction = match base_direction {
-        //                             Direction::NE => {
-        //                                 match direction {
-        //                                     Direction::NE => direction,
-        //                                     Direction::N => direction,
-        //                                     Direction::E => direction,
-        //                                     _ => Direction::NE,
-        //                                 }
-        //                             }
-        //                             Direction::SE => {
-        //                                 match direction {
-        //                                     Direction::S => direction,
-        //                                     Direction::E => direction,
-        //                                     Direction::SE => direction,
-        //                                     _ => Direction::SE
-        //                                 }
-        //                             }
-        //                             Direction::SW => {
-        //                                 match direction {
-        //                                     Direction::W => direction,
-        //                                     Direction::S => direction,
-        //                                     Direction::SW => direction,
-        //                                     _ => Direction::SW
-        //                                 }
-        //                             }
-        //                             Direction::NW => {
-        //                                 match direction {
-        //                                     Direction::N => direction,
-        //                                     Direction::W => direction,
-        //                                     Direction::NW => direction,
-        //                                     _ => Direction::NW
-        //                                 }
-        //                             }
-        //                             _ => unreachable!(),
-        //                         };
-        //                         collisions.push((base_direction, direction, distance, resulting_direction));
-        //                     }
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
-
-        // if !collisions.is_empty() {
-        //     println!("{:#?}", collisions);
-        //     for coll in collisions {
-        //         match coll.3 {
-        //             Direction::N => {
-        //                 self.vel.y = -self.vel.y.abs() * BOUNCE_COEFF;
-        //             }
-        //             Direction::NE => {
-        //                 self.vel.y = -self.vel.y.abs() * BOUNCE_COEFF;
-        //                 self.vel.x = -self.vel.x.abs() * BOUNCE_COEFF;
-        //             }
-        //             Direction::E => {
-        //                 self.vel.x = -self.vel.x.abs() * BOUNCE_COEFF;
-        //             }
-        //             Direction::SE => {
-        //                 self.vel.y = self.vel.y.abs() * BOUNCE_COEFF;
-        //                 self.vel.x = -self.vel.x.abs() * BOUNCE_COEFF;
-        //             }
-        //             Direction::S => {
-        //                 self.vel.y = self.vel.y.abs() * BOUNCE_COEFF;
-        //             }
-        //             Direction::SW => {
-        //                 self.vel.y = self.vel.y.abs() * BOUNCE_COEFF;
-        //                 self.vel.x = self.vel.x.abs() * BOUNCE_COEFF;
-        //             }
-        //             Direction::W => {
-        //                 self.vel.x = self.vel.x.abs() * BOUNCE_COEFF;
-        //             }
-        //             Direction::NW => {
-        //                 self.vel.y = -self.vel.y.abs() * BOUNCE_COEFF;
-        //                 self.vel.x = self.vel.x.abs() * BOUNCE_COEFF;
-        //             }
-        //         }
-        //     }
-        //     self.loc = last_loc;
-        // }
 
         //TODO implement proper bouncing
         // bouncing off walls (no longer needed, as a proper map is being made)
-        if self.loc.x < 0.0 {
+        // x min
+        if self.loc.x < self.x_min {
             self.vel.x = -self.vel.x * BOUNCE_COEFF;
-            self.loc.x = 0.0;
+            self.loc.x = self.x_min;
         }
-        if self.loc.x + self.size.x > win_size[0] * POINTS_TO_METERS {
+        // x max
+        if self.loc.x + self.size.x > self.x_max {
             self.vel.x = -self.vel.x * BOUNCE_COEFF;
-            self.loc.x = win_size[0] * POINTS_TO_METERS - self.size.x;
+            self.loc.x = self.x_max - self.size.x;
         }
-        if self.loc.y < 0.0 {
+        // y min
+        if self.loc.y < self.y_min {
             self.vel.y = -self.vel.y * BOUNCE_COEFF;
-            self.loc.y = 0.0;
+            self.loc.y = self.y_min;
         }
-        if self.loc.y + self.size.y > win_size[1] * POINTS_TO_METERS {
+        // y max
+        if self.loc.y + self.size.y > self.y_max {
             self.vel.y = -self.vel.y * BOUNCE_COEFF;
-            self.loc.y = win_size[1] * POINTS_TO_METERS - self.size.y;
+            self.loc.y = self.y_max - self.size.y;
         }
         // self.down_to_earth = self.loc.y < 0.1;
         //TODO fix this
@@ -557,20 +355,7 @@ impl Player {
                 gl,
             );
 
-        // let circle = rectangle::centered_square(
-        //     (self.phys.loc.x + self.phys.size.x / 2.0) * METERS_TO_POINTS,
-        //     (self.phys.loc.y + self.phys.size.y / 2.0) * METERS_TO_POINTS,
-        //     30.0,
-        // );
-        // Ellipse::new(rgba(50, 100, 255, 0.4)).draw(
-        //     circle,
-        //     &DrawState::default(),
-        //     c.transform
-        //         .trans(-cam_loc.x * METERS_TO_POINTS, -cam_loc.y * METERS_TO_POINTS),
-        //     gl,
-        // );
-
-        Rectangle::new(rgba(0, 243, 223, 0.42)).draw(
+        Rectangle::new(rgba(0, 243, 223, 0.2)).draw(
             rectangle_by_points(
                 globalize_physics_cord(
                     F64x2::new(
@@ -593,34 +378,70 @@ impl Player {
             gl,
         );
 
-        // for i in [
-        //     F64x2 {
-        //         x: self.phys.loc.x + self.phys.size.x / 2.0,
-        //         y: self.phys.loc.y,
-        //     },
-        //     F64x2 {
-        //         x: self.phys.loc.x,
-        //         y: self.phys.loc.y + self.phys.size.y / 2.0,
-        //     },
-        //     F64x2 {
-        //         x: self.phys.loc.x + self.phys.size.x,
-        //         y: self.phys.loc.y + self.phys.size.y / 2.0,
-        //     },
-        //     F64x2 {
-        //         x: self.phys.loc.x + self.phys.size.x / 2.0,
-        //         y: self.phys.loc.y + self.phys.size.y,
-        //     },
-        // ] {
-        //     let circle =
-        //         rectangle::centered_square(i.x * METERS_TO_POINTS, i.y * METERS_TO_POINTS, 5.0);
-        //     Ellipse::new(rgba(0, 100, 110, 0.4)).draw(
-        //         circle,
-        //         &DrawState::default(),
-        //         c.transform
-        //             .trans(-cam_loc.x * METERS_TO_POINTS, -cam_loc.y * METERS_TO_POINTS),
-        //         gl,
-        //     );
-        // }
+        //y min
+        line_from_to(
+            rgba(0, 255, 0, 0.1),
+            5.0,
+            globalize_physics_cord(
+                (self.phys.loc + F64x2::new(1.0, 0.0) * map_px_to_meter) * METERS_TO_POINTS,
+            ),
+            globalize_physics_cord(
+                (F64x2::new(self.phys.loc.x, self.phys.y_min)
+                    + F64x2::new(1.0, 0.1 /* so it shows a small gap */) * map_px_to_meter)
+                    * METERS_TO_POINTS,
+            ),
+            c.transform
+                .trans(-cam_loc.x * METERS_TO_POINTS, cam_loc.y * METERS_TO_POINTS),
+            gl,
+        );
+        // y max
+        line_from_to(
+            rgba(0, 255, 0, 0.1),
+            5.0,
+            globalize_physics_cord(
+                (self.phys.loc + F64x2::new(1.0, 3.0) * map_px_to_meter) * METERS_TO_POINTS,
+            ),
+            globalize_physics_cord(
+                (F64x2::new(self.phys.loc.x, self.phys.y_max)
+                    + F64x2::new(1.0, -1.1 /* so it shows a small gap */) * map_px_to_meter)
+                    * METERS_TO_POINTS,
+            ),
+            c.transform
+                .trans(-cam_loc.x * METERS_TO_POINTS, cam_loc.y * METERS_TO_POINTS),
+            gl,
+        );
+        // x min
+        line_from_to(
+            rgba(0, 255, 0, 0.1),
+            5.0,
+            globalize_physics_cord(
+                (self.phys.loc + F64x2::new(0.0, 1.0) * map_px_to_meter) * METERS_TO_POINTS,
+            ),
+            globalize_physics_cord(
+                (F64x2::new(self.phys.x_min, self.phys.loc.y)
+                    + F64x2::new(1.1, 1.0 /* so it shows a small gap */) * map_px_to_meter)
+                    * METERS_TO_POINTS,
+            ),
+            c.transform
+                .trans(-cam_loc.x * METERS_TO_POINTS, cam_loc.y * METERS_TO_POINTS),
+            gl,
+        );
+        // x max
+        line_from_to(
+            rgba(0, 255, 0, 0.1),
+            5.0,
+            globalize_physics_cord(
+                (self.phys.loc + F64x2::new(2.0, 1.0) * map_px_to_meter) * METERS_TO_POINTS,
+            ),
+            globalize_physics_cord(
+                (F64x2::new(self.phys.x_max, self.phys.loc.y)
+                    + F64x2::new(-0.1, 1.0 /* so it shows a small gap */) * map_px_to_meter)
+                    * METERS_TO_POINTS,
+            ),
+            c.transform
+                .trans(-cam_loc.x * METERS_TO_POINTS, cam_loc.y * METERS_TO_POINTS),
+            gl,
+        );
     }
 
     pub fn update_phys(
