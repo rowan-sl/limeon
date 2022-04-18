@@ -38,6 +38,17 @@ impl F64x2 {
     pub fn cross_vs_inverted(self, s: f64) -> Self {
         -self.cross_vs(s)
     }
+
+    pub fn dist_between_circles(self, other: Self, r1: f64, r2: f64) -> f64 {
+        ((other.x - self.x).powi(2) + (other.y - self.y).powi(2)).sqrt() - (r2 + r1)
+    }
+
+    pub fn floor(self) -> Self {
+        Self {
+            x: self.x.floor(),
+            y: self.y.floor(),
+        }
+    }
 }
 
 impl Add for F64x2 {
