@@ -1,6 +1,6 @@
 mod phys;
 
-use image::{imageops, io::Reader as ImageReader, RgbaImage};
+use image::{imageops, io::Reader as ImageReader};
 use opengl_graphics::{GlGraphics, Texture, TextureSettings};
 
 use crate::colors::*;
@@ -20,6 +20,7 @@ pub struct Player {
     /// force added to y velocity on jumping
     pub jump_force: f64,
     pub move_force: f64,
+    pub debug_phys: bool,
 }
 
 impl Player {
@@ -59,6 +60,7 @@ impl Player {
             sprites,
             jump_force,
             move_force,
+            debug_phys: false,
         }
     }
 
@@ -67,9 +69,9 @@ impl Player {
         c: &graphics::Context,
         gl: &mut GlGraphics,
         win_height: f64,
-        cam_loc: F64x2,
-        map_px_to_meter: f64,
+        map: &crate::WorldMap,
     ) {
+        let map_px_to_meter = map.map_px_to_meter;
         let meter_to_map_px = 1.0 / map_px_to_meter;
         let globalize_physics_cord = move |coord: F64x2| -> F64x2 {
             F64x2 {
@@ -91,102 +93,116 @@ impl Player {
                     HorizontalDirection::Right => &self.sprites.1,
                 },
                 &graphics::DrawState::default(),
-                c.transform
-                    .trans(-cam_loc.x * METERS_TO_POINTS, cam_loc.y * METERS_TO_POINTS),
+                c.transform.trans(
+                    -map.cam_loc.x * METERS_TO_POINTS,
+                    map.cam_loc.y * METERS_TO_POINTS,
+                ),
                 gl,
             );
 
-        Rectangle::new(rgba(0, 243, 223, 0.2)).draw(
-            rectangle_by_points(
-                globalize_physics_cord(
-                    F64x2::new(
-                        (self.phys.loc.x * meter_to_map_px).floor(),
-                        (self.phys.loc.y * meter_to_map_px).floor(),
-                    ) * map_px_to_meter
-                        * METERS_TO_POINTS,
+        if self.debug_phys {
+            Rectangle::new(rgba(0, 243, 223, 0.3)).draw(
+                rectangle_by_points(
+                    globalize_physics_cord(
+                        F64x2::new(
+                            (self.phys.loc.x * meter_to_map_px).floor(),
+                            (self.phys.loc.y * meter_to_map_px).floor(),
+                        ) * map_px_to_meter
+                            * METERS_TO_POINTS,
+                    ),
+                    globalize_physics_cord(
+                        F64x2::new(
+                            (self.phys.loc.x * meter_to_map_px).floor() + 3.0,
+                            (self.phys.loc.y * meter_to_map_px).floor() + 4.0,
+                        ) * map_px_to_meter
+                            * METERS_TO_POINTS,
+                    ),
                 ),
-                globalize_physics_cord(
-                    F64x2::new(
-                        (self.phys.loc.x * meter_to_map_px).floor() + 3.0,
-                        (self.phys.loc.y * meter_to_map_px).floor() + 4.0,
-                    ) * map_px_to_meter
-                        * METERS_TO_POINTS,
+                &DrawState::default(),
+                c.transform.trans(
+                    -map.cam_loc.x * METERS_TO_POINTS,
+                    map.cam_loc.y * METERS_TO_POINTS,
                 ),
-            ),
-            &DrawState::default(),
-            c.transform
-                .trans(-cam_loc.x * METERS_TO_POINTS, cam_loc.y * METERS_TO_POINTS),
-            gl,
-        );
+                gl,
+            );
 
-        //y min
-        line_from_to(
-            rgba(0, 255, 0, 0.1),
-            5.0,
-            globalize_physics_cord(
-                (self.phys.loc + F64x2::new(1.0, 0.0) * map_px_to_meter) * METERS_TO_POINTS,
-            ),
-            globalize_physics_cord(
-                (F64x2::new(self.phys.loc.x, self.phys.y_min)
-                    + F64x2::new(1.0, 0.1 /* so it shows a small gap */) * map_px_to_meter)
-                    * METERS_TO_POINTS,
-            ),
-            c.transform
-                .trans(-cam_loc.x * METERS_TO_POINTS, cam_loc.y * METERS_TO_POINTS),
-            gl,
-        );
-        // y max
-        line_from_to(
-            rgba(0, 255, 0, 0.1),
-            5.0,
-            globalize_physics_cord(
-                (self.phys.loc + F64x2::new(1.0, 3.0) * map_px_to_meter) * METERS_TO_POINTS,
-            ),
-            globalize_physics_cord(
-                (F64x2::new(self.phys.loc.x, self.phys.y_max)
-                    + F64x2::new(1.0, -1.1 /* so it shows a small gap */) * map_px_to_meter)
-                    * METERS_TO_POINTS,
-            ),
-            c.transform
-                .trans(-cam_loc.x * METERS_TO_POINTS, cam_loc.y * METERS_TO_POINTS),
-            gl,
-        );
-        // x min
-        line_from_to(
-            rgba(0, 255, 0, 0.1),
-            5.0,
-            globalize_physics_cord(
-                (self.phys.loc + F64x2::new(0.0, 1.0) * map_px_to_meter) * METERS_TO_POINTS,
-            ),
-            globalize_physics_cord(
-                (F64x2::new(self.phys.x_min, self.phys.loc.y)
-                    + F64x2::new(1.1, 1.0 /* so it shows a small gap */) * map_px_to_meter)
-                    * METERS_TO_POINTS,
-            ),
-            c.transform
-                .trans(-cam_loc.x * METERS_TO_POINTS, cam_loc.y * METERS_TO_POINTS),
-            gl,
-        );
-        // x max
-        line_from_to(
-            rgba(0, 255, 0, 0.1),
-            5.0,
-            globalize_physics_cord(
-                (self.phys.loc + F64x2::new(2.0, 1.0) * map_px_to_meter) * METERS_TO_POINTS,
-            ),
-            globalize_physics_cord(
-                (F64x2::new(self.phys.x_max, self.phys.loc.y)
-                    + F64x2::new(-0.1, 1.0 /* so it shows a small gap */) * map_px_to_meter)
-                    * METERS_TO_POINTS,
-            ),
-            c.transform
-                .trans(-cam_loc.x * METERS_TO_POINTS, cam_loc.y * METERS_TO_POINTS),
-            gl,
-        );
+            //y min
+            line_from_to(
+                rgba(0, 255, 0, 0.2),
+                5.0,
+                globalize_physics_cord(
+                    (self.phys.loc + F64x2::new(1.0, 0.0) * map_px_to_meter) * METERS_TO_POINTS,
+                ),
+                globalize_physics_cord(
+                    (F64x2::new(self.phys.loc.x, self.phys.y_min)
+                        + F64x2::new(1.0, 0.1 /* so it shows a small gap */) * map_px_to_meter)
+                        * METERS_TO_POINTS,
+                ),
+                c.transform.trans(
+                    -map.cam_loc.x * METERS_TO_POINTS,
+                    map.cam_loc.y * METERS_TO_POINTS,
+                ),
+                gl,
+            );
+            // y max
+            line_from_to(
+                rgba(0, 255, 0, 0.2),
+                5.0,
+                globalize_physics_cord(
+                    (self.phys.loc + F64x2::new(1.0, 3.0) * map_px_to_meter) * METERS_TO_POINTS,
+                ),
+                globalize_physics_cord(
+                    (F64x2::new(self.phys.loc.x, self.phys.y_max)
+                        + F64x2::new(1.0, -1.1 /* so it shows a small gap */) * map_px_to_meter)
+                        * METERS_TO_POINTS,
+                ),
+                c.transform.trans(
+                    -map.cam_loc.x * METERS_TO_POINTS,
+                    map.cam_loc.y * METERS_TO_POINTS,
+                ),
+                gl,
+            );
+            // x min
+            line_from_to(
+                rgba(0, 255, 0, 0.2),
+                5.0,
+                globalize_physics_cord(
+                    (self.phys.loc + F64x2::new(0.0, 1.0) * map_px_to_meter) * METERS_TO_POINTS,
+                ),
+                globalize_physics_cord(
+                    (F64x2::new(self.phys.x_min, self.phys.loc.y)
+                        + F64x2::new(0.1, 1.0 /* so it shows a small gap */) * map_px_to_meter)
+                        * METERS_TO_POINTS,
+                ),
+                c.transform.trans(
+                    -map.cam_loc.x * METERS_TO_POINTS,
+                    map.cam_loc.y * METERS_TO_POINTS,
+                ),
+                gl,
+            );
+            // x max
+            line_from_to(
+                rgba(0, 255, 0, 0.2),
+                5.0,
+                globalize_physics_cord(
+                    (self.phys.loc + F64x2::new(2.0, 1.0) * map_px_to_meter) * METERS_TO_POINTS,
+                ),
+                globalize_physics_cord(
+                    (F64x2::new(self.phys.x_max, self.phys.loc.y)
+                        + F64x2::new(-0.1, 1.0 /* so it shows a small gap */) * map_px_to_meter)
+                        * METERS_TO_POINTS,
+                ),
+                c.transform.trans(
+                    -map.cam_loc.x * METERS_TO_POINTS,
+                    map.cam_loc.y * METERS_TO_POINTS,
+                ),
+                gl,
+            );
+        }
     }
 
-    pub fn update_phys(&mut self, dt: f64, map: &RgbaImage, map_px_to_meter: f64) {
-        self.phys.update(dt, map, map_px_to_meter)
+    pub fn update_phys(&mut self, dt: f64, map: &crate::WorldMap) {
+        self.phys.update(dt, map)
     }
 
     pub fn jump(&mut self) {

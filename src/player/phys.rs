@@ -1,5 +1,5 @@
-use crate::{constants::*, vec2::F64x2};
-use image::{Rgba, RgbaImage};
+use crate::{constants::*, vec2::F64x2, TileEffect, TileEffectCondition};
+use image::Rgba;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum HorizontalDirection {
@@ -27,8 +27,6 @@ pub struct PlayerPhys {
     pub movement_forces: F64x2,
     /// kg
     pub mass: f64,
-    /// if it is 'touching' the ground
-    pub down_to_earth: bool,
     /// last direction of movement. by default, this is right
     pub last_direction: HorizontalDirection,
     /// width, height from the bottom left corner
@@ -49,7 +47,6 @@ impl PlayerPhys {
             vel: F64x2::zero(),
             movement_forces: F64x2::zero(),
             mass,
-            down_to_earth: false,
             last_direction: HorizontalDirection::Right,
             size,
             x_min: 0.0,
@@ -59,28 +56,13 @@ impl PlayerPhys {
         }
     }
 
-    pub fn update(&mut self, dt: f64, map: &RgbaImage, map_px_to_meter: f64) {
+    pub fn update(&mut self, dt: f64, map: &crate::WorldMap) {
+        let map_px_to_meter = map.map_px_to_meter;
         let meter_to_map_px = 1.0 / map_px_to_meter;
         let forces = self.force + self.movement_forces;
         self.accel = forces / self.mass;
         self.vel += GRAVITY * dt;
         self.vel += self.accel * dt;
-
-        //TODO make better friction
-        if self.down_to_earth {
-            // let mut friction = FLOOR_FRICTION_COEFF.x * GRAVITY.y * dt;
-            // if !self.vel.x.is_sign_negative() {
-            //     friction = -friction;
-            // }
-            // self.vel.x = if ((self.vel.x - friction).abs() < self.vel.x.abs())
-            //     && ((self.vel.x - friction).is_sign_negative() == self.vel.x.is_sign_negative())
-            // {
-            //     // println!("friction applies");
-            //     self.vel.x - friction
-            // } else {
-            //     0.0
-            // };
-        }
 
         let new_loc = self.loc + self.vel * dt;
 
@@ -94,7 +76,10 @@ impl PlayerPhys {
         // let mut new_pixelspace_loc = pixel_space_self_coords(new_loc);
         let current_pixelspace_loc = pixel_space_self_coords(self.loc);
 
-        let get_limit =
+        // information about collisions occuring below the player. (bounce fac, friction)
+        let mut collision_information: Option<(f64, F64x2)> = None;
+
+        let mut get_limit =
             |start: F64x2, /* starting coord in pixel space */
              mode: u8      /* 1 = y min 2 = y max 3 = x min 4 = x max */| {
                 let mut lim = match mode {
@@ -103,20 +88,43 @@ impl PlayerPhys {
                     _ => unreachable!(),
                 };
                 loop {
-                    if let Some(pixel) = map.get_pixel_checked(
+                    if let Some(pixel) = map.map.get_pixel_checked(
                         match mode {
                             1 | 2 => start.x,
                             3 | 4 => lim,
                             _ => unreachable!(),
                         } as u32,
-                        map.height()
+                        map.map.height()
                             - match mode {
                                 1 | 2 => lim,
                                 3 | 4 => start.y,
                                 _ => unreachable!(),
                             } as u32,
                     ) {
-                        if *pixel != Rgba([0; 4]) {
+                        let mut collision: bool = false;
+                        if let Some(eff) = map.effect_map.get(pixel) {
+                            for effect in &eff.0 {
+                                match effect {
+                                    //TODO implement the rest of the effects
+                                    TileEffect::Collision(bounce_factor, friction) => {
+                                        collision = true;
+                                        if mode == 1 {
+                                            // y axis min distance (collision on players feet)
+                                            println!(
+                                                "x min: {:?} = {:?} @ {:?}",
+                                                pixel,
+                                                eff,
+                                                (lim, start.y)
+                                            );
+                                            collision_information =
+                                                Some((*bounce_factor, *friction));
+                                        }
+                                    }
+                                    _ => {}
+                                }
+                            }
+                        }
+                        if collision {
                             break;
                         } else {
                             match mode {
@@ -146,40 +154,52 @@ impl PlayerPhys {
 
         self.y_min = get_limit(current_pixelspace_loc + F64x2::new(1.0, 0.0), 1);
         println!("y min val: {}", self.y_min);
-        self.y_max = get_limit(current_pixelspace_loc + F64x2::new(1.0, 4.0), 2);
+        self.y_max = get_limit(current_pixelspace_loc + F64x2::new(1.0, 4.0), 2) - map_px_to_meter;
         println!("y max val: {}", self.y_max);
-        self.x_min = get_limit(current_pixelspace_loc + F64x2::new(0.0, 2.0), 3);
+        self.x_min = get_limit(current_pixelspace_loc + F64x2::new(0.0, 2.0), 3) + map_px_to_meter;
         println!("x min val: {}", self.x_min);
         self.x_max = get_limit(current_pixelspace_loc + F64x2::new(2.0, 2.0), 4);
         println!("x max val: {}", self.x_max);
 
         self.loc = new_loc;
 
+        if let Some((_, friction_coeff)) = collision_information {
+            let mut friction = friction_coeff.x * GRAVITY.y * dt;
+            if !self.vel.x.is_sign_negative() {
+                friction = -friction;
+            }
+            self.vel.x = if ((self.vel.x - friction).abs() < self.vel.x.abs())
+                && ((self.vel.x - friction).is_sign_negative() == self.vel.x.is_sign_negative())
+            {
+                // println!("friction applies");
+                self.vel.x - friction
+            } else {
+                0.0
+            };
+        }
+
         //TODO implement proper bouncing
-        // bouncing off walls (no longer needed, as a proper map is being made)
         // x min
         if self.loc.x < self.x_min {
-            self.vel.x = -self.vel.x * BOUNCE_COEFF;
+            self.vel.x = -self.vel.x * collision_information.unwrap().0;
             self.loc.x = self.x_min;
         }
         // x max
         if self.loc.x + self.size.x > self.x_max {
-            self.vel.x = -self.vel.x * BOUNCE_COEFF;
+            self.vel.x = -self.vel.x * collision_information.unwrap().0;
             self.loc.x = self.x_max - self.size.x;
         }
         // y min
         if self.loc.y < self.y_min {
-            self.vel.y = -self.vel.y * BOUNCE_COEFF;
+            self.vel.y = -self.vel.y * collision_information.unwrap().0;
             self.loc.y = self.y_min;
         }
         // y max
         if self.loc.y + self.size.y > self.y_max {
-            self.vel.y = -self.vel.y * BOUNCE_COEFF;
+            self.vel.y = -self.vel.y * collision_information.unwrap().0;
             self.loc.y = self.y_max - self.size.y;
         }
-        // self.down_to_earth = self.loc.y < 0.1;
-        //TODO fix this
-        self.down_to_earth = true;
+
         if self.movement_forces.x > 0.0 {
             self.last_direction = HorizontalDirection::Right;
         } else if self.movement_forces.x < 0.0 {
