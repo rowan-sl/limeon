@@ -28,7 +28,7 @@ use world::{WorldMap, TileEffect, TileEffectCondition};
 
 fn main() -> Result<()> {
     pretty_env_logger::formatted_builder()
-        .filter_level(log::LevelFilter::Trace)
+        .filter_level(log::LevelFilter::Debug)
         .init();
 
     info!("Initialized");
@@ -59,7 +59,7 @@ fn main() -> Result<()> {
         2.0,
     );
 
-    let mut map = WorldMap::from_path("assets/maps/limeon_test_map_2_100x100.png", &player)?;
+    let mut map = WorldMap::from_path("assets/maps/limeon_test_map_3_100x100.png", &player)?;
 
     let mut events = Events::new({
         let mut es = EventSettings::new();

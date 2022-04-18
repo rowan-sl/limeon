@@ -178,25 +178,29 @@ impl PlayerPhys {
         }
 
         //TODO implement proper bouncing
-        // x min
-        if self.loc.x < self.x_min {
-            self.vel.x = -self.vel.x * collision_information.unwrap().0;
-            self.loc.x = self.x_min;
-        }
-        // x max
-        if self.loc.x + self.size.x > self.x_max {
-            self.vel.x = -self.vel.x * collision_information.unwrap().0;
-            self.loc.x = self.x_max - self.size.x;
-        }
-        // y min
-        if self.loc.y < self.y_min {
-            self.vel.y = -self.vel.y * collision_information.unwrap().0;
-            self.loc.y = self.y_min;
-        }
-        // y max
-        if self.loc.y + self.size.y > self.y_max {
-            self.vel.y = -self.vel.y * collision_information.unwrap().0;
-            self.loc.y = self.y_max - self.size.y;
+        if let Some((bounce_coeff, _)) = collision_information {
+            // x min
+            if self.loc.x < self.x_min {
+                self.vel.x = -self.vel.x * bounce_coeff;
+                self.loc.x = self.x_min;
+            }
+            // x max
+            if self.loc.x + self.size.x > self.x_max {
+                self.vel.x = -self.vel.x * bounce_coeff;
+                self.loc.x = self.x_max - self.size.x;
+            }
+            // y min
+            if self.loc.y < self.y_min {
+                self.vel.y = -self.vel.y * bounce_coeff;
+                self.loc.y = self.y_min;
+            }
+            // y max
+            if self.loc.y + self.size.y > self.y_max {
+                self.vel.y = -self.vel.y * bounce_coeff;
+                self.loc.y = self.y_max - self.size.y;
+            }
+        } else if self.loc.x < self.x_min || self.loc.x + self.size.x > self.x_max || self.loc.y < self.y_min || self.loc.y + self.size.y > self.y_max {
+            error!("a collision occured, but no collision information was present!");
         }
 
         if self.movement_forces.x > 0.0 {
