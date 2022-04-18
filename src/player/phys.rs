@@ -110,7 +110,7 @@ impl PlayerPhys {
                                         collision = true;
                                         if mode == 1 {
                                             // y axis min distance (collision on players feet)
-                                            println!(
+                                            trace!(
                                                 "x min: {:?} = {:?} @ {:?}",
                                                 pixel,
                                                 eff,
@@ -153,13 +153,13 @@ impl PlayerPhys {
             };
 
         self.y_min = get_limit(current_pixelspace_loc + F64x2::new(1.0, 0.0), 1);
-        println!("y min val: {}", self.y_min);
+        trace!("y min val: {}", self.y_min);
         self.y_max = get_limit(current_pixelspace_loc + F64x2::new(1.0, 4.0), 2) - map_px_to_meter;
-        println!("y max val: {}", self.y_max);
+        trace!("y max val: {}", self.y_max);
         self.x_min = get_limit(current_pixelspace_loc + F64x2::new(0.0, 2.0), 3) + map_px_to_meter;
-        println!("x min val: {}", self.x_min);
+        trace!("x min val: {}", self.x_min);
         self.x_max = get_limit(current_pixelspace_loc + F64x2::new(2.0, 2.0), 4);
-        println!("x max val: {}", self.x_max);
+        trace!("x max val: {}", self.x_max);
 
         self.loc = new_loc;
 
@@ -171,7 +171,6 @@ impl PlayerPhys {
             self.vel.x = if ((self.vel.x - friction).abs() < self.vel.x.abs())
                 && ((self.vel.x - friction).is_sign_negative() == self.vel.x.is_sign_negative())
             {
-                // println!("friction applies");
                 self.vel.x - friction
             } else {
                 0.0
@@ -205,7 +204,7 @@ impl PlayerPhys {
         } else if self.movement_forces.x < 0.0 {
             self.last_direction = HorizontalDirection::Left;
         }
-        println!("{:#?}", self);
-        println!("tick");
+        trace!("{:#?}", self);
+        trace!("tick");
     }
 }
