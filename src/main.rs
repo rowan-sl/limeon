@@ -24,7 +24,7 @@ use colors::*;
 use constants::*;
 use player::Player;
 use vec2::F64x2;
-use world::{WorldMap, TileEffect, TileEffectCondition};
+use world::{WorldMap, TileEffect};
 
 fn main() -> Result<()> {
     pretty_env_logger::formatted_builder()
@@ -39,7 +39,6 @@ fn main() -> Result<()> {
     // Create an Glutin window.
     let mut window: GlutinWindow = WindowSettings::new("limeon", [200, 200])
         .graphics_api(opengl)
-        .exit_on_esc(true)
         .size(Size {
             width: 1_000.0,
             height: 700.0,
@@ -72,7 +71,7 @@ fn main() -> Result<()> {
         es
     });
 
-    while let Some(e) = events.next(&mut window) {
+    'main: while let Some(e) = events.next(&mut window) {
         if let Some(args) = e.render_args() {
             use graphics::*;
 
@@ -122,6 +121,10 @@ fn main() -> Result<()> {
                     }
                     Key::Y => {
                         player.debug_phys = !player.debug_phys;
+                    }
+                    Key::Escape => {
+                        warn!("Exiting");
+                        break 'main;
                     }
                     _ => {}
                 },

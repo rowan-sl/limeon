@@ -127,77 +127,99 @@ impl Player {
             );
 
             //y min
-            line_from_to(
-                rgba(0, 255, 0, 0.2),
-                5.0,
-                globalize_physics_cord(
-                    (self.phys.loc + F64x2::new(1.0, 0.0) * map_px_to_meter) * METERS_TO_POINTS,
-                ),
-                globalize_physics_cord(
-                    (F64x2::new(self.phys.loc.x, self.phys.y_min)
-                        + F64x2::new(1.0, 0.1 /* so it shows a small gap */) * map_px_to_meter)
-                        * METERS_TO_POINTS,
-                ),
-                c.transform.trans(
-                    -map.cam_loc.x * METERS_TO_POINTS,
-                    map.cam_loc.y * METERS_TO_POINTS,
-                ),
-                gl,
-            );
+            let mut render_y_min = |value: f64, offset: f64| {
+                line_from_to(
+                    rgba(0, 255, 0, 0.2),
+                    5.0,
+                    globalize_physics_cord(
+                        (self.phys.loc + F64x2::new(offset, 0.0) * map_px_to_meter) * METERS_TO_POINTS,
+                    ),
+                    globalize_physics_cord(
+                        (F64x2::new(self.phys.loc.x, value)
+                            + F64x2::new(offset, 0.1 /* so it shows a small gap */) * map_px_to_meter)
+                            * METERS_TO_POINTS,
+                    ),
+                    c.transform.trans(
+                        -map.cam_loc.x * METERS_TO_POINTS,
+                        map.cam_loc.y * METERS_TO_POINTS,
+                    ),
+                    gl,
+                );
+            };
+            render_y_min(self.phys.y0_min, 0.0);
+            render_y_min(self.phys.y1_min, 1.0);
+            render_y_min(self.phys.y2_min, 2.0);
             // y max
-            line_from_to(
-                rgba(0, 255, 0, 0.2),
-                5.0,
-                globalize_physics_cord(
-                    (self.phys.loc + F64x2::new(1.0, 3.0) * map_px_to_meter) * METERS_TO_POINTS,
-                ),
-                globalize_physics_cord(
-                    (F64x2::new(self.phys.loc.x, self.phys.y_max)
-                        + F64x2::new(1.0, -1.1 /* so it shows a small gap */) * map_px_to_meter)
-                        * METERS_TO_POINTS,
-                ),
-                c.transform.trans(
-                    -map.cam_loc.x * METERS_TO_POINTS,
-                    map.cam_loc.y * METERS_TO_POINTS,
-                ),
-                gl,
-            );
+            let mut render_y_max = |value: f64, offset: f64| {
+                line_from_to(
+                    rgba(0, 255, 0, 0.2),
+                    5.0,
+                    globalize_physics_cord(
+                        (self.phys.loc + F64x2::new(offset, 3.0) * map_px_to_meter) * METERS_TO_POINTS,
+                    ),
+                    globalize_physics_cord(
+                        (F64x2::new(self.phys.loc.x, value)
+                            + F64x2::new(offset, -1.1 /* so it shows a small gap */) * map_px_to_meter)
+                            * METERS_TO_POINTS,
+                    ),
+                    c.transform.trans(
+                        -map.cam_loc.x * METERS_TO_POINTS,
+                        map.cam_loc.y * METERS_TO_POINTS,
+                    ),
+                    gl,
+                );
+            };
+            render_y_max(self.phys.y0_max, 0.0);
+            render_y_max(self.phys.y1_max, 1.0);
+            render_y_max(self.phys.y2_max, 2.0);
             // x min
-            line_from_to(
-                rgba(0, 255, 0, 0.2),
-                5.0,
-                globalize_physics_cord(
-                    (self.phys.loc + F64x2::new(0.0, 1.0) * map_px_to_meter) * METERS_TO_POINTS,
-                ),
-                globalize_physics_cord(
-                    (F64x2::new(self.phys.x_min, self.phys.loc.y)
-                        + F64x2::new(0.1, 1.0 /* so it shows a small gap */) * map_px_to_meter)
-                        * METERS_TO_POINTS,
-                ),
-                c.transform.trans(
-                    -map.cam_loc.x * METERS_TO_POINTS,
-                    map.cam_loc.y * METERS_TO_POINTS,
-                ),
-                gl,
-            );
+            let mut render_x_min = |value: f64, offset: f64| {
+                line_from_to(
+                    rgba(0, 255, 0, 0.2),
+                    5.0,
+                    globalize_physics_cord(
+                        (self.phys.loc + F64x2::new(0.0, offset) * map_px_to_meter) * METERS_TO_POINTS,
+                    ),
+                    globalize_physics_cord(
+                        (F64x2::new(value, self.phys.loc.y)
+                            + F64x2::new(0.1, offset) * map_px_to_meter)
+                            * METERS_TO_POINTS,
+                    ),
+                    c.transform.trans(
+                        -map.cam_loc.x * METERS_TO_POINTS,
+                        map.cam_loc.y * METERS_TO_POINTS,
+                    ),
+                    gl,
+                );
+            };
+            render_x_min(self.phys.x0_min, 0.0);
+            render_x_min(self.phys.x1_min, 1.0);
+            render_x_min(self.phys.x2_min, 2.0);
+            render_x_min(self.phys.x3_min, 3.0);
             // x max
-            line_from_to(
-                rgba(0, 255, 0, 0.2),
-                5.0,
-                globalize_physics_cord(
-                    (self.phys.loc + F64x2::new(2.0, 1.0) * map_px_to_meter) * METERS_TO_POINTS,
-                ),
-                globalize_physics_cord(
-                    (F64x2::new(self.phys.x_max, self.phys.loc.y)
-                        + F64x2::new(-0.1, 1.0 /* so it shows a small gap */) * map_px_to_meter)
-                        * METERS_TO_POINTS,
-                ),
-                c.transform.trans(
-                    -map.cam_loc.x * METERS_TO_POINTS,
-                    map.cam_loc.y * METERS_TO_POINTS,
-                ),
-                gl,
-            );
+            let mut render_x_max = |value: f64, offset: f64| {
+                line_from_to(
+                    rgba(0, 255, 0, 0.2),
+                    5.0,
+                    globalize_physics_cord(
+                        (self.phys.loc + F64x2::new(2.0, offset) * map_px_to_meter) * METERS_TO_POINTS,
+                    ),
+                    globalize_physics_cord(
+                        (F64x2::new(value, self.phys.loc.y)
+                            + F64x2::new(-0.1, offset) * map_px_to_meter)
+                            * METERS_TO_POINTS,
+                    ),
+                    c.transform.trans(
+                        -map.cam_loc.x * METERS_TO_POINTS,
+                        map.cam_loc.y * METERS_TO_POINTS,
+                    ),
+                    gl,
+                );
+            };
+            render_x_max(self.phys.x0_max, 0.0);
+            render_x_max(self.phys.x1_max, 1.0);
+            render_x_max(self.phys.x2_max, 2.0);
+            render_x_max(self.phys.x3_max, 3.0);
         }
     }
 

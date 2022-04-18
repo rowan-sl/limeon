@@ -1,11 +1,28 @@
-use crate::{constants::*, vec2::F64x2, TileEffect, TileEffectCondition};
-use image::Rgba;
+use crate::{constants::*, vec2::F64x2, TileEffect};
+
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum HorizontalDirection {
     Left,
     Right,
 }
+
+pub fn min(a: f64, b: f64) -> f64 {
+    if a > b {
+        b
+    } else {
+        a
+    }
+}
+
+pub fn max(a: f64, b: f64) -> f64 {
+    if a > b {
+        a
+    } else {
+        b
+    }
+}
+
 
 #[derive(Debug, Clone)]
 pub struct PlayerPhys {
@@ -32,10 +49,23 @@ pub struct PlayerPhys {
     /// width, height from the bottom left corner
     pub size: F64x2,
     // min and max vals
-    pub x_min: f64,
-    pub y_min: f64,
-    pub x_max: f64,
-    pub y_max: f64,
+    pub x0_min: f64,
+    pub x1_min: f64,
+    pub x2_min: f64,
+    pub x3_min: f64,
+
+    pub x0_max: f64,
+    pub x1_max: f64,
+    pub x2_max: f64,
+    pub x3_max: f64,
+
+    pub y0_min: f64,
+    pub y1_min: f64,
+    pub y2_min: f64,
+
+    pub y0_max: f64,
+    pub y1_max: f64,
+    pub y2_max: f64,
 }
 
 impl PlayerPhys {
@@ -49,10 +79,20 @@ impl PlayerPhys {
             mass,
             last_direction: HorizontalDirection::Right,
             size,
-            x_min: 0.0,
-            y_min: 0.0,
-            x_max: 0.0,
-            y_max: 0.0,
+            x0_min: 0.0,
+            x1_min: 0.0,
+            x2_min: 0.0,
+            x3_min: 0.0,
+            x0_max: 0.0,
+            x1_max: 0.0,
+            x2_max: 0.0,
+            x3_max: 0.0,
+            y0_min: 0.0,
+            y1_min: 0.0,
+            y2_min: 0.0,
+            y0_max: 0.0,
+            y1_max: 0.0,
+            y2_max: 0.0,
         }
     }
 
@@ -152,14 +192,25 @@ impl PlayerPhys {
                 lim_meters
             };
 
-        self.y_min = get_limit(current_pixelspace_loc + F64x2::new(1.0, 0.0), 1);
-        trace!("y min val: {}", self.y_min);
-        self.y_max = get_limit(current_pixelspace_loc + F64x2::new(1.0, 4.0), 2) - map_px_to_meter;
-        trace!("y max val: {}", self.y_max);
-        self.x_min = get_limit(current_pixelspace_loc + F64x2::new(0.0, 2.0), 3) + map_px_to_meter;
-        trace!("x min val: {}", self.x_min);
-        self.x_max = get_limit(current_pixelspace_loc + F64x2::new(2.0, 2.0), 4);
-        trace!("x max val: {}", self.x_max);
+        // left -> right
+        self.y0_min = get_limit(current_pixelspace_loc + F64x2::new(0.0, 0.0), 1);
+        self.y1_min = get_limit(current_pixelspace_loc + F64x2::new(1.0, 0.0), 1);// unchanged
+        self.y2_min = get_limit(current_pixelspace_loc + F64x2::new(2.0, 0.0), 1);
+
+        self.y0_max = get_limit(current_pixelspace_loc + F64x2::new(0.0, 4.0), 2) - map_px_to_meter;
+        self.y1_max = get_limit(current_pixelspace_loc + F64x2::new(1.0, 4.0), 2) - map_px_to_meter;//unchanged
+        self.y2_max = get_limit(current_pixelspace_loc + F64x2::new(2.0, 4.0), 2) - map_px_to_meter;
+
+        // bottom -> top
+        self.x0_min = get_limit(current_pixelspace_loc + F64x2::new(0.0, 1.0), 3) + map_px_to_meter;
+        self.x1_min = get_limit(current_pixelspace_loc + F64x2::new(0.0, 2.0), 3) + map_px_to_meter;//unchanged
+        self.x2_min = get_limit(current_pixelspace_loc + F64x2::new(0.0, 3.0), 3) + map_px_to_meter;
+        self.x3_min = get_limit(current_pixelspace_loc + F64x2::new(0.0, 4.0), 3) + map_px_to_meter;
+
+        self.x0_max = get_limit(current_pixelspace_loc + F64x2::new(2.0, 1.0), 4);
+        self.x1_max = get_limit(current_pixelspace_loc + F64x2::new(2.0, 2.0), 4);//unchanged
+        self.x2_max = get_limit(current_pixelspace_loc + F64x2::new(2.0, 3.0), 4);
+        self.x3_max = get_limit(current_pixelspace_loc + F64x2::new(2.0, 4.0), 4);
 
         self.loc = new_loc;
 
@@ -178,28 +229,32 @@ impl PlayerPhys {
         }
 
         //TODO implement proper bouncing
+        let x_min = max(max(self.x0_min, self.x1_min), max(self.x2_min, self.x3_min));
+        let y_min = max(max(self.y0_min, self.y1_min), self.y2_min);
+        let x_max = min(min(self.x0_max, self.x1_max), min(self.x2_max, self.x3_max));
+        let y_max = min(min(self.y0_max, self.y1_max), self.y2_max);
         if let Some((bounce_coeff, _)) = collision_information {
             // x min
-            if self.loc.x < self.x_min {
+            if self.loc.x < x_min {
                 self.vel.x = -self.vel.x * bounce_coeff;
-                self.loc.x = self.x_min;
+                self.loc.x = x_min;
             }
             // x max
-            if self.loc.x + self.size.x > self.x_max {
+            if self.loc.x + self.size.x > x_max {
                 self.vel.x = -self.vel.x * bounce_coeff;
-                self.loc.x = self.x_max - self.size.x;
+                self.loc.x = x_max - self.size.x;
             }
             // y min
-            if self.loc.y < self.y_min {
+            if self.loc.y < y_min {
                 self.vel.y = -self.vel.y * bounce_coeff;
-                self.loc.y = self.y_min;
+                self.loc.y = y_min;
             }
             // y max
-            if self.loc.y + self.size.y > self.y_max {
+            if self.loc.y + self.size.y > y_max {
                 self.vel.y = -self.vel.y * bounce_coeff;
-                self.loc.y = self.y_max - self.size.y;
+                self.loc.y = y_max - self.size.y;
             }
-        } else if self.loc.x < self.x_min || self.loc.x + self.size.x > self.x_max || self.loc.y < self.y_min || self.loc.y + self.size.y > self.y_max {
+        } else if self.loc.x < x_min || self.loc.x + self.size.x > x_max || self.loc.y < y_min || self.loc.y + self.size.y > y_max {
             error!("a collision occured, but no collision information was present!");
         }
 
